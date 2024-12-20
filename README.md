@@ -2,7 +2,9 @@
 # ATM-Simulator
 
 ## Introduction
-This program is based on the architecture this [repo](https://github.com/Adithya-S-Bhat/ATM-Simulator-using-C), and was originally a fork of it. However, the owner seems to be not active at all in that, I create this repo as my own.
+This program is based on the architecture this [repo](https://github.com/Adithya-S-Bhat/ATM-Simulator-using-C), and was originally a fork of it. 
+
+Unfortunately, the owner seems to be not active at all, in that, I create this repo as my own.
 
 ## Original Features
 A basic ATM simulator that can be run on a terminal window, which is written in C. It has the following funtionalities:
