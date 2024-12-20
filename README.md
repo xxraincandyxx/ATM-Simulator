@@ -2,7 +2,7 @@
 # ATM-Simulator
 
 ## Introduction
-This program is based on the architecture this [repo](https://github.com/Adithya-S-Bhat/ATM-Simulator-using-C), and was originally a fork of it. 
+This program is based on the architecture of [this](https://github.com/Adithya-S-Bhat/ATM-Simulator-using-C), and was originally a fork of it. 
 
 Unfortunately, the owner seems to be not active at all, in that, I create this repo as my own.
 
