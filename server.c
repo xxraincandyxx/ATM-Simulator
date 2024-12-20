@@ -21,6 +21,12 @@ bool verifyPassword(Account* account, const unsigned char* inputPassword) {
     return strcmp(decrypted_password, inputPassword) == 0;
 }
 
+bool verifyCipher(const unsigned char* a, const unsigned char* b) {
+    for (int i = 0; i < CIPHER_SIZE; i++)
+        if (a[i] != b[i]) return false;
+    return true;
+}
+
 void mainMenu() {
     int c = -1;
 
@@ -133,12 +139,30 @@ void _output_transaction_hist(const Account* ptr_usr_data) {
     printf("|Idx|  Bef.  |  Aft.  | Card No. |\n");
     printf("|--------------------------------|\n");
     for (; i < trans_num; i++) {
+        // printf("\x1B[31m|--------------------------------|\n\x1B[0m");
+        // for (int j = 0; j < CIPHER_SIZE; j++)
+        //     printf("%02x",
+        //            ptr_usr_data->transaction_hist[i].target_card_id_cipher[j]);
+        // printf("\n");
+        // for (int j = 0; j < CIPHER_SIZE; j++)
+        //     printf("%02x", ptr_usr_data->card_id_cipher[j]);
+        // printf("\n");
+        // printf("\x1B[31m|--------------------------------|\n\x1B[0m");
         balance_val_arr[i] = ptr_usr_data->transaction_hist[i].pre_balance;
-        if (strcmp(ptr_usr_data->transaction_hist[i].target_card_id_cipher,
-                   ptr_usr_data->card_id_cipher) == 0) {
-            printf("|%03d| %6.1lf | %6.1lf | Withdraw |\n", i + 1,
-                   ptr_usr_data->transaction_hist[i].pre_balance,
-                   ptr_usr_data->transaction_hist[i].post_balance);
+        if (verifyCipher(ptr_usr_data->transaction_hist[i].target_card_id_cipher,
+                   ptr_usr_data->card_id_cipher)) {
+            if (ptr_usr_data->transaction_hist[i].pre_balance <
+                ptr_usr_data->transaction_hist[i].post_balance) {
+                // Deposit
+                printf("|%03d| %6.1lf | %6.1lf | Deposit  |\n", i + 1,
+                       ptr_usr_data->transaction_hist[i].pre_balance,
+                       ptr_usr_data->transaction_hist[i].post_balance);
+            } else {
+                // Withdrawal
+                printf("|%03d| %6.1lf | %6.1lf | Withdraw |\n", i + 1,
+                       ptr_usr_data->transaction_hist[i].pre_balance,
+                       ptr_usr_data->transaction_hist[i].post_balance);
+            }
         } else {
             unsigned char target_card_id[ACCOUNT_ID_LENGTH];
             decryptor(ptr_usr_data->transaction_hist[i].target_card_id_cipher,
@@ -151,7 +175,9 @@ void _output_transaction_hist(const Account* ptr_usr_data) {
     }
     balance_val_arr[i] = ptr_usr_data->transaction_hist[i - 1].post_balance;
 
+    printf("\x1B[31m|--------------------------------|\n\x1B[0m");
     printf("|\x1B[33m ---- Balance Val Forecast ---- \x1B[0m|\n");
+    printf("\x1B[31m|--------------------------------|\n\x1B[0m");
     printf("|Idx|      Balance  Values       |\n");
     printf("|--------------------------------|\n");
     int n_forecasts = 3;
@@ -308,7 +334,8 @@ bool userMenu(const unsigned char* intput_card_id) {
         case 1:  // Deposit
             printf("\x1B[32mEnter the amount to be deposited: \x1B[0m");
             scanf(" %lf", &amt);
-            (ptr_usr_dlst + i)->balance += amt;
+            // Equivalent to Transfer to self
+            transfer(ptr_usr_dlst + i, ptr_usr_dlst + i, amt);
             printf("\x1B[34mAmount deposited successfully\n\x1B[0m");
             printf("Your new balance is %.2lf .RMB\n",
                    (ptr_usr_dlst + i)->balance);
@@ -369,7 +396,7 @@ bool userMenu(const unsigned char* intput_card_id) {
             scanf(" %lf", &amt);
             if ((ptr_usr_dlst + i)->balance >= amt) {
                 // Equivalent to Transfer to self
-                transfer(ptr_usr_dlst + i, ptr_usr_dlst + i, amt);
+                transfer(ptr_usr_dlst + i, ptr_usr_dlst + i, -amt);
                 printf("\x1B[34mPlease collect the cash.\n\x1B[0m");
                 printf("Your new balance is %.2lf .RMB\n",
                        (ptr_usr_dlst + i)->balance);
@@ -523,21 +550,46 @@ void transfer(Account* fromAccount, Account* toAccount, double amt) {
         return;
     }
 
+    // Transfer to self - Withdrawal & Deposit
+    // amt < 0: Withdrawal
+    // amt >= 0: Deposit
+    if (fromAccount->card_id_cipher == toAccount->card_id_cipher) {
+        if (amt < 0) {
+            if (fromAccount->balance + amt < 0.0) {
+                printf("\x1B[31mInsufficient balance.\n\x1B[0m");
+                return;
+            }
+            int transnum = _get_acc_transnum(fromAccount);
+            fromAccount->transaction_hist[transnum].pre_balance =
+                fromAccount->balance;
+            fromAccount->balance += amt;
+            fromAccount->transaction_hist[transnum].post_balance =
+                fromAccount->balance;
+            strcpy(
+                fromAccount->transaction_hist[transnum].target_card_id_cipher,
+                fromAccount->card_id_cipher);
+            return;
+        } else {
+            int transnum = _get_acc_transnum(fromAccount);
+            fromAccount->transaction_hist[transnum].pre_balance =
+                fromAccount->balance;
+            fromAccount->balance += amt;
+            fromAccount->transaction_hist[transnum].post_balance =
+                fromAccount->balance;
+            strcpy(
+                fromAccount->transaction_hist[transnum].target_card_id_cipher,
+                fromAccount->card_id_cipher);
+            return;
+        }
+    }
+
     if (fromAccount->balance < amt) {
         printf("\x1B[31mInsufficient balance.\n\x1B[0m");
         return;
     }
 
-    // Transfer to self - Withdrawal
-    if (fromAccount->card_id_cipher == toAccount->card_id_cipher) {
-        int transnum = _get_acc_transnum(fromAccount);
-        fromAccount->transaction_hist[transnum].pre_balance =
-            fromAccount->balance;
-        fromAccount->balance -= amt;
-        fromAccount->transaction_hist[transnum].post_balance =
-            fromAccount->balance;
-        strcpy(fromAccount->transaction_hist[transnum].target_card_id_cipher,
-               fromAccount->card_id_cipher);
+    if (amt < 0.0) {
+        printf("\x1B[31mYou cannot enter an amount below 0.\n\x1B[0m");
         return;
     }
 
