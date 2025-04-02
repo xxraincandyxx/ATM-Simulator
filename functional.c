@@ -7,9 +7,6 @@
 #include "server.h"
 #define BLOCK_SIZE 16  // cannot be changed
 
-#include <stdio.h>
-#include <stdlib.h>
-
 // Basic Implementation of Linear Forecast
 //
 
